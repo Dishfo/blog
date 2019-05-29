@@ -30,7 +30,7 @@ func InitRedis() {
 			}
 			return c, nil
 		},
-		MaxIdle: 15,
+		MaxIdle: 30,
 	}
 
 	r, err := client.Get().Do("PING")
@@ -54,6 +54,8 @@ func InitRedis() {
 			time.Sleep(time.Second * 120)
 			cleanExpiredToken()
 			clearAccessRecord()
+			clearAccessSeq()
+			clearArticles()
 		}
 	}()
 }

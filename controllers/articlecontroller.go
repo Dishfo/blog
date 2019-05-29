@@ -4,6 +4,9 @@ import (
 	"blogServer/models"
 	"encoding/json"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/validation"
+	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +16,17 @@ type ArticleController struct {
 	beego.Controller
 }
 
-func (c *ArticleController) URLMapping() {
+var (
+	validFieldName = "(Title|Tags|Summary|Content)"
+	regex          *regexp.Regexp
+)
 
+func init() {
+	var err error
+	regex, err = regexp.Compile(validFieldName)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
 
 //read
@@ -116,7 +128,25 @@ out:
 //@Success 200 {object} models.QueryResult
 //@router /getTopArticles [get]
 func (c *ArticleController) GetTopArticles() {
+	var result models.QueryResult
+	size, err := c.GetInt("size")
+	if err != nil || size <= 0 {
+		result.OperationResult =
+			models.NewOperationResult(models.InvalidArg)
+	} else {
+		articles, err := models.QueryTopArticle(size)
+		if err != nil {
+			result.OperationResult =
+				models.NewOperationResult(models.InternalErr)
+		} else {
+			result.OperationResult =
+				models.NewOperationResult(models.SUCCEED)
+			result.Value = articles
+		}
+	}
 
+	c.Data["json"] = result
+	c.ServeJSON()
 }
 
 //write
@@ -127,9 +157,11 @@ func (c *ArticleController) AddArticle() {
 	var result models.OperationResult
 	a := new(models.Article)
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, a)
-	if err != nil {
+	ok, _ := validArticleForCreate(a)
+	if err != nil || !ok {
 		result = models.NewOperationResult(models.InvalidArg)
 	} else {
+
 		a.Publish = time.Now()
 		err := models.CreateArticle(a)
 		if err != nil {
@@ -150,7 +182,8 @@ func (c *ArticleController) EditArticle() {
 	var result models.OperationResult
 	aw := new(models.ArticleEditWrapper)
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, aw)
-	if err != nil {
+	ok, _ := validArticleForUpdate(aw.Value, aw.Fields)
+	if err != nil || !ok {
 		result = models.NewOperationResult(models.InvalidArg)
 	} else {
 		a := aw.Value
@@ -186,3 +219,48 @@ func (c *ArticleController) RemoveArticle() {
 }
 
 //todo 实现结构体参数的验证
+func validArticleForCreate(a *models.Article) (bool, string) {
+	valid := validation.Validation{}
+	valid.Required(a.Title, "title")
+	valid.Required(a.Summary, "summary")
+	valid.Required(a.Content, "content")
+	if len(a.Tags) > 0 {
+		for _, tag := range a.Tags {
+			valid.Required(tag.Id, "tag_id")
+		}
+	}
+
+	if len(valid.Errors) > 0 {
+		sb := new(strings.Builder)
+		for _, e := range valid.Errors {
+			sb.WriteString(e.Name + " ")
+			sb.WriteString(e.String())
+			sb.WriteString("\n")
+		}
+		return false, sb.String()
+	}
+
+	return true, ""
+}
+
+func validArticleForUpdate(a *models.Article, fields []string) (bool, string) {
+	valid := validation.Validation{}
+	valid.Required(a.Id, "id")
+
+	//判断field 是否合法
+	for _, field := range fields {
+		valid.Match(field, regex, field)
+	}
+
+	if len(valid.Errors) > 0 {
+		sb := new(strings.Builder)
+		for _, e := range valid.Errors {
+			sb.WriteString(e.Name + " ")
+			sb.WriteString(e.String())
+			sb.WriteString("\n")
+		}
+		return false, sb.String()
+	}
+
+	return true, ""
+}

@@ -4,6 +4,7 @@ import (
 	"blogServer/models"
 	"encoding/json"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/validation"
 	"strconv"
 )
 
@@ -38,7 +39,7 @@ func (c *TagController) AddTag() {
 	var result models.OperationResult
 	tag := new(models.Tag)
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, tag)
-	if err != nil || tag.Name == "" {
+	if err != nil || !validTag(tag) {
 		result = models.NewOperationResult(models.InvalidArg)
 	} else {
 		err := models.CreateTag(tag)
@@ -72,4 +73,14 @@ func (c *TagController) RemoveTag() {
 	}
 	c.Data["json"] = result
 	c.ServeJSON()
+}
+
+func validTag(t *models.Tag) bool {
+	valid := validation.Validation{}
+	valid.Required(t.Name, "name")
+
+	if len(valid.Errors) > 0 {
+		return false
+	}
+	return true
 }

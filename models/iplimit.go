@@ -20,7 +20,9 @@ var (
 )
 
 func loadConfig() {
-	maxAccess, _ = beego.AppConfig.Int("accesslimit")
+	maxAccess = beego.AppConfig.DefaultInt("accesslimit", 60)
+	maxCacheNum = beego.AppConfig.DefaultInt("maxcahcenum", 50)
+	maxTopArticle = beego.AppConfig.DefaultInt("maxtoparticles", 80)
 }
 
 //UserAccessSite return true if can access this time

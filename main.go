@@ -11,7 +11,7 @@ import (
 func main() {
 	beego.ErrorController(&controllers.ErrController{})
 	models.InitModels()
-	if beego.BConfig.RunMode == "prod" {
+	if beego.BConfig.RunMode == "dev" {
 		beego.BConfig.WebConfig.DirectoryIndex = true
 		beego.BConfig.WebConfig.StaticDir["/swagger"] = "swagger"
 		beego.InsertFilter("*", beego.BeforeRouter, func(ctx *context.Context) {
@@ -19,7 +19,7 @@ func main() {
 		})
 	}
 
-	if beego.BConfig.RunMode == "run " {
+	if beego.BConfig.RunMode == "prod" {
 		controllers.FilterUserPermission()
 		controllers.FilterIpAccessLimit()
 	}

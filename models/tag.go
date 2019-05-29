@@ -1,6 +1,8 @@
 package models
 
-import "log"
+import (
+	"github.com/astaxie/beego"
+)
 
 type Tag struct {
 	Id       int64
@@ -14,7 +16,7 @@ func QueryAllTags() ([]*Tag, error) {
 		return nil, err
 	}
 	if tags != nil || len(tags) != 0 {
-		log.Println("hit in cache")
+		beego.BeeLogger.Info("hit in cache")
 		return tags, nil
 	}
 	return queryAllTagsInSql()

@@ -15,9 +15,7 @@ func init() {
 	_, file, _, _ := runtime.Caller(0)
 	apppath, _ := filepath.Abs(filepath.Dir(filepath.Join(file, ".."+string(filepath.Separator))))
 	beego.TestBeegoInit(apppath)
-	RegisterDB()
-	InitRedis()
-
+	InitModels()
 }
 
 func TestTagQuery(t *testing.T) {
@@ -162,4 +160,37 @@ func TestArticleCache(t *testing.T) {
 	b, _ := json.MarshalIndent(a, "", "	")
 	log.Println(string(b))
 	//QueryArticleById(a.Id)
+}
+
+func TestArticleCacheMod(t *testing.T) {
+	a := &Article{
+		Title:   "test",
+		Summary: "wada",
+		Publish: time.Now(),
+		Content: "dwada",
+		Tags: []*Tag{
+			&Tag{
+				Name: "json",
+				Id:   1,
+			},
+			&Tag{
+				Id:   2,
+				Name: "c++",
+			},
+		},
+	}
+
+	for i := 0; i < 150; i++ {
+		a.Id = 0
+
+		err := CreateArticle(a)
+		if err != nil {
+			t.Log(err)
+		}
+		QueryArticleById(a.Id)
+
+	}
+
+	clearArticles()
+
 }

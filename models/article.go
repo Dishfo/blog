@@ -30,6 +30,7 @@ func QueryArticleById(id int64) (*Article, error) {
 	a, err := queryArticleInCache(id)
 	if a != nil {
 		beego.BeeLogger.Info("hit a article cache")
+		_ = accessArticle(a.Id, time.Now().Unix())
 		return a, nil
 	}
 
@@ -39,8 +40,9 @@ func QueryArticleById(id int64) (*Article, error) {
 	}
 	if a != nil {
 		_ = cacheArticle(a)
+		_ = accessArticle(a.Id, time.Now().Unix())
 	}
-	_ = accessArticle(a.Id, time.Now().Unix())
+
 	return a, nil
 }
 
@@ -51,8 +53,20 @@ func QueryArticleByTag(tags []*Tag) ([]*Article, error) {
 //todo 需要设计权重函数
 //QueryTopArticle 返回一个包含了不包含文章内容的列表
 func QueryTopArticle(size int) ([]*Article, error) {
-
-	return nil, nil
+	ids, err := queryTopArticlesInCache(size)
+	if err != nil {
+		return nil, err
+	}
+	articles := make([]*Article, 0)
+	for _, id := range ids {
+		a, err := QueryArticleById(id)
+		if err != nil || a == nil {
+			continue
+		}
+		a.Content = ""
+		articles = append(articles, a)
+	}
+	return articles, nil
 }
 
 func UpdateArticle(a *Article, fields []string) error {

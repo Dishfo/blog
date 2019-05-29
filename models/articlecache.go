@@ -17,6 +17,15 @@ import (
 const (
 	articleKeyPrefix    = "article:"
 	articleAcsKeyPrefix = "article_view:"
+
+	articleViewTime  = "article_access"
+	articleViewCount = "article_view"
+	articleViewSort  = "article_seq"
+)
+
+var (
+	maxTopArticle = 80
+	maxCacheNum   = 50
 )
 
 //用于存储在缓存系统中的article内容 hset用于
@@ -67,9 +76,10 @@ func cacheArticle(a *Article) error {
 	if err != nil {
 		return err
 	}
-	s, _ := redis.String(r, err)
-	beego.BeeLogger.Info("%s", s)
-	err = conn.Flush()
+	_, _ = redis.String(r, err)
+	//beego.BeeLogger.Info("%s", s)
+	//err = conn.Flush()
+
 	return err
 }
 
@@ -105,20 +115,73 @@ func queryArticleInCache(id int64) (*Article, error) {
 	return articleC.toArticle(), err
 }
 
+//暂时不记录访问的时间
 func accessArticle(id, access int64) error {
 	conn := client.Get()
 	key := articleAccessKey(id)
-	_, err := conn.Do("SADD", key, access)
+	err := conn.Send("MULTI")
+	_ = conn.Send("ZADD", articleViewTime, access, id)
+	err = conn.Send("ZINCRBY", articleViewSort, -2, key)
+	err = conn.Send("ZINCRBY", articleViewCount, 1, key)
+	err = conn.Send("EXEC")
+	err = conn.Flush()
 	return err
+}
+
+func clearArticles() {
+	conn := client.Get()
+	ids, err := redis.Int64s(conn.Do("ZRANGE", articleViewTime, 0, -(maxCacheNum + 1)))
+	if err != nil {
+		return
+	}
+	args := []interface{}{
+		articleViewTime,
+	}
+
+	_ = conn.Send("MUTLI")
+	for _, id := range ids {
+		key := articleKey(id)
+		args = append(args, id)
+		_ = conn.Send("DEL", key)
+	}
+
+	_ = conn.Send("ZREM", args...)
+	_ = conn.Send("EXEC")
+	_ = conn.Flush()
+}
+
+//
+func clearAccessSeq() {
+	conn := client.Get()
+	err := conn.Send("MULTI")
+	err = conn.Send("ZREMRANGEBYRANK", articleViewSort, maxTopArticle+1, -1)
+	err = conn.Send("ZREMRANGEBYRANK", articleViewCount, 0, -100-1)
+	err = conn.Send("ZINTERSTORE", articleViewSort, 2, articleViewSort,
+		articleViewCount)
+	err = conn.Send("EXEC")
+	err = conn.Flush()
+	beego.BeeLogger.Error("%s", err.Error())
 }
 
 //获取访问量 最前面size的文章
 /**
 此处需要设计一个权重函数
 */
-func QueryTopArticlesInCache(size int) ([]int64, error) {
+func queryTopArticlesInCache(size int) ([]int64, error) {
+	conn := client.Get()
+	mems, err := redis.Strings(conn.Do("ZRANGE", articleViewSort, 0, size-1))
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0)
 
-	return nil, nil
+	for _, mem := range mems {
+		s := strings.TrimLeft(mem, articleAcsKeyPrefix)
+		id, _ := strconv.ParseInt(s, 10, 64)
+		ids = append(ids, id)
+	}
+
+	return ids, nil
 }
 
 func clearArticle(id int64) {
