@@ -1,0 +1,270 @@
+swagger: "2.0"
+info:
+  title: web API
+  description: mobile has every tool to get any job done, so codename for the new
+    mobile APIs.
+  version: 1.0.0
+  contact:
+    email: 1771334691@qq.com
+basePath: /v1
+paths:
+  /admin/login:
+    post:
+      tags:
+      - admin
+      parameters:
+      - in: formData
+        name: user
+        description: username
+        required: true
+        type: string
+      - in: formData
+        name: pass
+        description: password
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.LoginResult'
+  /article/add:
+    post:
+      tags:
+      - article
+      parameters:
+      - in: body
+        name: article
+        description: create article
+        required: true
+        schema:
+          $ref: '#/definitions/models.Article'
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.OperationResult'
+  /article/delete/{id}:
+    delete:
+      tags:
+      - article
+      parameters:
+      - in: path
+        name: id
+        description: id of article
+        required: true
+        type: integer
+        format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.OperationResult'
+  /article/edit:
+    put:
+      tags:
+      - article
+      parameters:
+      - in: body
+        name: article
+        description: "true"
+        schema:
+          $ref: '#/definitions/models.ArticleEditWrapper'
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.OperationResult'
+  /article/getArticle/{id}:
+    get:
+      tags:
+      - article
+      parameters:
+      - in: path
+        name: id
+        description: Specific id of article
+        required: true
+        type: integer
+        format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.QueryResult'
+  /article/getArticleByTag:
+    get:
+      tags:
+      - article
+      parameters:
+      - in: query
+        name: tags
+        description: Specific tags
+        required: true
+        type: array
+        items:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.QueryResult'
+  /article/getTopArticles:
+    get:
+      tags:
+      - article
+      parameters:
+      - in: query
+        name: size
+        description: Number of articles required
+        required: true
+        type: integer
+        format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.QueryResult'
+  /article/list:
+    get:
+      tags:
+      - article
+      parameters:
+      - in: query
+        name: pageNo
+        description: 哪一页
+        required: true
+        type: integer
+        format: int64
+      - in: query
+        name: pageSize
+        description: 一页的大小
+        required: true
+        type: integer
+        format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.QueryResult'
+  /tag/add:
+    post:
+      tags:
+      - tag
+      parameters:
+      - in: body
+        name: id
+        description: "true"
+        schema:
+          $ref: '#/definitions/models.Tag'
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.OperationResult'
+        "401":
+          description: non auth
+  /tag/delete/{id}:
+    delete:
+      tags:
+      - tag
+      parameters:
+      - in: path
+        name: id
+        description: "true"
+        type: integer
+        format: int64
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.OperationResult'
+        "401":
+          description: non auth
+  /tag/list:
+    get:
+      tags:
+      - tag
+      responses:
+        "200":
+          description: ""
+          schema:
+            $ref: '#/definitions/models.QueryResult'
+definitions:
+  9456.0xc000265710.false:
+    title: "false"
+    type: object
+  models.Article:
+    title: Article
+    type: object
+    properties:
+      Content:
+        type: string
+      Id:
+        type: integer
+        format: int64
+      Publish:
+        type: string
+        format: datetime
+      Summary:
+        type: string
+      Tags:
+        type: array
+        items:
+          $ref: '#/definitions/models.Tag'
+      Title:
+        type: string
+  models.ArticleEditWrapper:
+    title: ArticleEditWrapper
+    type: object
+    properties:
+      Fields:
+        type: array
+        items:
+          type: string
+      Value:
+        $ref: '#/definitions/models.Article'
+  models.LoginResult:
+    title: LoginResult
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      msg:
+        type: string
+      token:
+        type: string
+  models.OperationResult:
+    title: OperationResult
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      msg:
+        type: string
+  models.QueryResult:
+    title: QueryResult
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      msg:
+        type: string
+      value:
+        $ref: '#/definitions/9456.0xc000265710.false'
+  models.Tag:
+    title: Tag
+    type: object
+    properties:
+      Articles:
+        type: array
+        items:
+          $ref: '#/definitions/models.Article'
+      Id:
+        type: integer
+        format: int64
+      Name:
+        type: string
