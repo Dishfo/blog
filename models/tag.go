@@ -6,7 +6,7 @@ import (
 
 type Tag struct {
 	Id       int64
-	Name     string     `orm:"unique"`
+	Name     string     `orm:"unique;size(20)"`
 	Articles []*Article `orm:"reverse(many)"`
 }
 

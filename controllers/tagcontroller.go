@@ -78,7 +78,7 @@ func (c *TagController) RemoveTag() {
 func validTag(t *models.Tag) bool {
 	valid := validation.Validation{}
 	valid.Required(t.Name, "name")
-
+	valid.MaxSize(t.Name, 20, "name_len")
 	if len(valid.Errors) > 0 {
 		return false
 	}

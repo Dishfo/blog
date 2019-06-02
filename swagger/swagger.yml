@@ -191,7 +191,7 @@ paths:
           schema:
             $ref: '#/definitions/models.QueryResult'
 definitions:
-  9456.0xc000265710.false:
+  9934.0xc00038bd40.false:
     title: "false"
     type: object
   models.Article:
@@ -254,7 +254,7 @@ definitions:
       msg:
         type: string
       value:
-        $ref: '#/definitions/9456.0xc000265710.false'
+        $ref: '#/definitions/9934.0xc00038bd40.false'
   models.Tag:
     title: Tag
     type: object

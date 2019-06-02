@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
+	"github.com/gomodule/redigo/redis"
+	"github.com/streadway/amqp"
 	"log"
 	"path/filepath"
 	"runtime"
@@ -193,4 +195,57 @@ func TestArticleCacheMod(t *testing.T) {
 
 	clearArticles()
 
+}
+
+func TestRpcCall(t *testing.T) {
+	content, err := json.Marshal([]int{1, 2, 3, 4, 5})
+	if err != nil {
+		return
+	}
+	q, err := maCh.QueueDeclare(
+		"",    // name
+		false, // durable
+		false, // delete when usused
+		true,  // exclusive
+		false, // noWait
+		nil,   // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = maCh.Publish("rpc",
+		"recommended",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:   "application/json",
+			Body:          content,
+			CorrelationId: "one",
+			ReplyTo:       q.Name,
+		},
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	msgs, err := maCh.Consume(q.Name, "recs", true,
+		false,
+		false, false, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for d := range msgs {
+		log.Println(string(d.Body))
+	}
+
+}
+
+func TestRedisPipeLine(t *testing.T) {
+	conn := client.Get()
+	conn.Send("SET", "A", 123456)
+	conn.Send("SET", "A", 123456)
+	conn.Flush()
+
+	str, err := redis.String(conn.Do("GET", "A"))
+	t.Log(str, err)
 }

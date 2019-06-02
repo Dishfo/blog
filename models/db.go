@@ -21,7 +21,7 @@ func RegisterDB() {
 	_ = orm.RegisterDriver("mysql", orm.DRMySQL)
 	_ = orm.RegisterDataBase("default", "mysql", url)
 	orm.RegisterModel(new(Tag), new(Article), new(Administrator))
-	err := orm.RunSyncdb("default", false, true)
+	err := orm.RunSyncdb("default", true, true)
 	if err != nil {
 		beego.BeeLogger.Error("%s", err.Error())
 	}

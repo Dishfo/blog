@@ -23,7 +23,6 @@ func main() {
 		controllers.FilterUserPermission()
 		controllers.FilterIpAccessLimit()
 	}
-
 	/*	beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
@@ -31,6 +30,5 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length", "Access-Control-Allow-Origin", "Access-Control-Allow-Headers", "Content-Type"},
 		AllowCredentials: true,
 	}))*/
-
 	beego.Run()
 }

@@ -2,14 +2,22 @@ package controllers
 
 import (
 	"blogServer/models"
+	"blogmesssage"
 	"encoding/json"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/validation"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	visitedCookieName = "visited"
+	recommendUrl      = "/v1/article/"
+	cookieMaxDay      = 180
 )
 
 type ArticleController struct {
@@ -75,8 +83,10 @@ func (c *ArticleController) GetArticle() {
 			result.OperationResult =
 				models.NewOperationResult(models.SUCCEED)
 			result.Value = a
+			appendVisitRecord(c, id)
 		}
 	}
+
 	c.Data["json"] = result
 	c.ServeJSON()
 }
@@ -161,13 +171,13 @@ func (c *ArticleController) AddArticle() {
 	if err != nil || !ok {
 		result = models.NewOperationResult(models.InvalidArg)
 	} else {
-
 		a.Publish = time.Now()
 		err := models.CreateArticle(a)
 		if err != nil {
 			result = models.NewOperationResult(models.InternalErr)
 		} else {
 			result = models.NewOperationResult(models.SUCCEED)
+			onAddArticle(a)
 		}
 	}
 
@@ -192,6 +202,7 @@ func (c *ArticleController) EditArticle() {
 			result = models.NewOperationResult(models.InternalErr)
 		} else {
 			result = models.NewOperationResult(models.SUCCEED)
+			onUpdateArticle(a, aw.Fields)
 		}
 	}
 	c.Data["json"] = result
@@ -218,6 +229,34 @@ func (c *ArticleController) RemoveArticle() {
 	c.ServeJSON()
 }
 
+//@Success 200 {object} models.QueryResult
+//@router /recommended   [get]
+func (c *ArticleController) RecommendArticles() {
+	var result models.QueryResult
+	var visited = parseVisited(c.Ctx.Request)
+	var articles []*models.Article
+
+	visitIds := make([]int64, 0)
+	err := json.Unmarshal([]byte(visited.Value), &visitIds)
+	if err != nil {
+		result.OperationResult =
+			models.NewOperationResult(models.InvalidArg)
+		goto out
+	}
+	articles, err = models.GetRecommendArticles(visitIds)
+	if err != nil {
+		result.OperationResult =
+			models.NewOperationResult(models.InvalidArg)
+	} else {
+		result.OperationResult =
+			models.NewOperationResult(models.SUCCEED)
+		result.Value = articles
+	}
+out:
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
 //todo 实现结构体参数的验证
 func validArticleForCreate(a *models.Article) (bool, string) {
 	valid := validation.Validation{}
@@ -229,7 +268,7 @@ func validArticleForCreate(a *models.Article) (bool, string) {
 			valid.Required(tag.Id, "tag_id")
 		}
 	}
-
+	validStringLength(&valid, a)
 	if len(valid.Errors) > 0 {
 		sb := new(strings.Builder)
 		for _, e := range valid.Errors {
@@ -246,6 +285,7 @@ func validArticleForCreate(a *models.Article) (bool, string) {
 func validArticleForUpdate(a *models.Article, fields []string) (bool, string) {
 	valid := validation.Validation{}
 	valid.Required(a.Id, "id")
+	validStringLength(&valid, a)
 
 	//判断field 是否合法
 	for _, field := range fields {
@@ -263,4 +303,74 @@ func validArticleForUpdate(a *models.Article, fields []string) (bool, string) {
 	}
 
 	return true, ""
+}
+
+func validStringLength(v *validation.Validation, a *models.Article) {
+	v.MaxSize(a.Content, 65535, "content_len")
+	v.MaxSize(a.Title, 128, "title_len")
+	v.MaxSize(a.Summary, 256, "summary_len")
+}
+
+func onAddArticle(a *models.Article) {
+	msg := new(blogmesssage.ArticleMessage)
+	msg.ArticleId = a.Id
+	msg.ArticleContent = a.Content
+	msg.Op = blogmesssage.CreateArticle
+	models.SendArticleMessage(msg)
+	//投递消息到消息队列中
+}
+
+func onUpdateArticle(a *models.Article, fields []string) {
+	isEditContent := false
+	for _, f := range fields {
+		if f == "Content" {
+			isEditContent = true
+			break
+		}
+	}
+
+	if !isEditContent {
+		return
+	}
+	msg := new(blogmesssage.ArticleMessage)
+	msg.ArticleId = a.Id
+	msg.ArticleContent = a.Content
+	msg.Op = blogmesssage.UpdateArticle
+	models.SendArticleMessage(msg)
+}
+
+//在访问某一篇文章后使用
+func appendVisitRecord(c *ArticleController, id int64) {
+	visited := parseVisited(c.Ctx.Request)
+	var visitedIds []int64
+	err := json.Unmarshal([]byte(visited.Value), &visitedIds)
+	if err != nil {
+		visitedIds = make([]int64, 0)
+	}
+
+	visitedIds = append(visitedIds, id)
+	b, _ := json.Marshal(visitedIds)
+	visited.Value = string(b)
+	http.SetCookie(c.Ctx.ResponseWriter, visited)
+}
+
+func parseVisited(r *http.Request) *http.Cookie {
+	var visited *http.Cookie
+	cookies := r.Cookies()
+	for _, cookie := range cookies {
+		if cookie.Name == visitedCookieName {
+			visited = cookie
+		}
+	}
+
+	if visited == nil {
+		visited = new(http.Cookie)
+		visited.Value = "[]"
+		visited.Name = visitedCookieName
+		visited.HttpOnly = true
+		visited.Path = "/v1/article/"
+		visited.Expires = time.Now().Add(time.Hour * 24 * cookieMaxDay)
+	}
+
+	return visited
 }

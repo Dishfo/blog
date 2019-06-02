@@ -49,15 +49,14 @@ func getTagsInCache() ([]*Tag, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		if r == nil {
 			continue
 		}
-
 		tag := new(Tag)
 		_ = json.Unmarshal(r.([]byte), tag)
 		tags = append(tags, tag)
 	}
+
 	return tags, nil
 }
 
@@ -84,8 +83,11 @@ func queryTagsByIdInCache(ids []int64) ([]*Tag, error) {
 
 func clearTagInCache(id int64) {
 	conn := client.Get()
+	_ = conn.Send("MUTLI")
 	_ = conn.Send("SREM", tagSet, id)
 	_ = conn.Send("DEL", tagIdKey(id))
+	_ = conn.Send("SREM", tagSet, id)
+	_ = conn.Send("EXEC")
 	_ = conn.Flush()
 }
 

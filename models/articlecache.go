@@ -83,20 +83,22 @@ func cacheArticle(a *Article) error {
 	return err
 }
 
+//到底要不要receive呢
 func updateArticleInCache(a *Article, fields []string) error {
 	conn := client.Get()
 	key := articleKey(a.Id)
-	_, err := conn.Do("MULTI")
+	err := conn.Send("MULTI")
 	if err != nil {
 		return err
 	}
 	ac := toArticleC(a)
 	for _, f := range fields {
-		_, _ = conn.Do("HSET", key,
+		_ = conn.Send("HSET", key,
 			strings.ToLower(f),
 			articleField(ac, f))
 	}
-	_, _ = conn.Do("EXEC")
+	_ = conn.Send("EXEC")
+	_ = conn.Flush()
 	return nil
 }
 
@@ -160,7 +162,9 @@ func clearAccessSeq() {
 		articleViewCount)
 	err = conn.Send("EXEC")
 	err = conn.Flush()
-	beego.BeeLogger.Error("%s", err.Error())
+	if err != nil {
+		beego.BeeLogger.Error("%s", err.Error())
+	}
 }
 
 //获取访问量 最前面size的文章
@@ -187,7 +191,14 @@ func queryTopArticlesInCache(size int) ([]int64, error) {
 func clearArticle(id int64) {
 	conn := client.Get()
 	key := articleKey(id)
-	_, _ = conn.Do("DEL", key)
+	key2 := articleAccessKey(id)
+	_ = conn.Send("MUTLI")
+	_ = conn.Send("DEL", key)
+	_ = conn.Send("ZREM", articleViewSort, key2)
+	_ = conn.Send("ZREM", articleViewCount, key2)
+	_ = conn.Send("ZREM", articleViewTime, id)
+	_ = conn.Send("EXEC")
+	_ = conn.Flush()
 }
 
 func articleAccessKey(id int64) string {
