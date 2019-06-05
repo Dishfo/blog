@@ -13,11 +13,11 @@ type ArticleEditWrapper struct {
 
 type Article struct {
 	Id      int64
-	Title   string `orm:"size(128)"`
-	Publish time.Time
-	Summary string `orm:"size(256)"`
-	Content string `orm:"size(65535);type(text)"`
-	Tags    []*Tag `orm:"rel(m2m)"`
+	Title   string    `orm:"size(128);type(varchar)"`
+	Publish time.Time `orm:"type(timestamp)"`
+	Summary string    `orm:"size(256)"`
+	Content string    `orm:"size(65535);type(text)"`
+	Tags    []*Tag    `orm:"rel(m2m)"`
 }
 
 //提供对外的函数进行相关的读写操作而隐藏相关的数据库或缓存操作.
@@ -96,8 +96,8 @@ func CreateArticle(a *Article) error {
 
 //todo 添加额外的线程每隔一段时间更新缓存中的内容
 //GetRecommendArticles 根据参数提供的文章id 返回推荐的文章
-func GetRecommendArticles(ids []int64) ([]*Article, error) {
-	articleIds, err := getRecommendArticleIds(ids)
+func GetRecommendArticles(ids []int64, size int) ([]*Article, error) {
+	articleIds, err := getRecommendArticleIds(ids, size)
 	if err != nil {
 		return nil, err
 	}

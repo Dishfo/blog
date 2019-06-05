@@ -5,10 +5,11 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 	"github.com/gomodule/redigo/redis"
-	"github.com/streadway/amqp"
+	"io/ioutil"
 	"log"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -18,6 +19,7 @@ func init() {
 	apppath, _ := filepath.Abs(filepath.Dir(filepath.Join(file, ".."+string(filepath.Separator))))
 	beego.TestBeegoInit(apppath)
 	InitModels()
+	runtime.GOMAXPROCS(2)
 }
 
 func TestTagQuery(t *testing.T) {
@@ -164,12 +166,17 @@ func TestArticleCache(t *testing.T) {
 	//QueryArticleById(a.Id)
 }
 
+var (
+	contentFile = "/home/dishfo/文档/content.txt"
+)
+
 func TestArticleCacheMod(t *testing.T) {
+	data, _ := ioutil.ReadFile(contentFile)
 	a := &Article{
 		Title:   "test",
 		Summary: "wada",
 		Publish: time.Now(),
-		Content: "dwada",
+		Content: string(data),
 		Tags: []*Tag{
 			&Tag{
 				Name: "json",
@@ -181,24 +188,32 @@ func TestArticleCacheMod(t *testing.T) {
 			},
 		},
 	}
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			for i := 0; i < 750; i++ {
+				a.Id = 0
 
-	for i := 0; i < 150; i++ {
-		a.Id = 0
+				err := CreateArticle(a)
+				if err != nil {
+					t.Log(err)
+				}
+				//QueryArticleById(a.Id)
 
-		err := CreateArticle(a)
-		if err != nil {
-			t.Log(err)
-		}
-		QueryArticleById(a.Id)
-
+			}
+			wg.Done()
+		}()
 	}
 
-	clearArticles()
+	wg.Wait()
+
+	//1clearArticles()
 
 }
 
 func TestRpcCall(t *testing.T) {
-	content, err := json.Marshal([]int{1, 2, 3, 4, 5})
+	/*content, err := json.Marshal([]int{1, 2, 3, 4, 5})
 	if err != nil {
 		return
 	}
@@ -236,7 +251,16 @@ func TestRpcCall(t *testing.T) {
 	}
 	for d := range msgs {
 		log.Println(string(d.Body))
+	}*/
+	ids := []int{
+		1, 2, 3, 4,
 	}
+
+	toJson := make(map[string]interface{})
+	toJson["ids"] = ids
+	toJson["size"] = 0
+	b, _ := json.Marshal(toJson)
+	t.Log(string(b))
 
 }
 

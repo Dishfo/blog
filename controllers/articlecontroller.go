@@ -229,21 +229,32 @@ func (c *ArticleController) RemoveArticle() {
 	c.ServeJSON()
 }
 
+//todo 添加推荐文章的数目限制
+//@Param size query int true "number of recommend article"
 //@Success 200 {object} models.QueryResult
 //@router /recommended   [get]
 func (c *ArticleController) RecommendArticles() {
 	var result models.QueryResult
 	var visited = parseVisited(c.Ctx.Request)
 	var articles []*models.Article
-
+	var size int
 	visitIds := make([]int64, 0)
+
 	err := json.Unmarshal([]byte(visited.Value), &visitIds)
-	if err != nil {
+	if err != nil || !validIdArray(visitIds) {
 		result.OperationResult =
 			models.NewOperationResult(models.InvalidArg)
 		goto out
 	}
-	articles, err = models.GetRecommendArticles(visitIds)
+
+	size, err = c.GetInt("size")
+	if err != nil || size <= 0 {
+		result.OperationResult =
+			models.NewOperationResult(models.InvalidArg)
+		goto out
+	}
+
+	articles, err = models.GetRecommendArticles(visitIds, size)
 	if err != nil {
 		result.OperationResult =
 			models.NewOperationResult(models.InvalidArg)
@@ -280,6 +291,16 @@ func validArticleForCreate(a *models.Article) (bool, string) {
 	}
 
 	return true, ""
+}
+
+func validIdArray(ids []int64) bool {
+	for _, id := range ids {
+		if id <= 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 func validArticleForUpdate(a *models.Article, fields []string) (bool, string) {

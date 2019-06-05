@@ -1,6 +1,10 @@
 package models
 
-import "github.com/astaxie/beego/orm"
+import (
+	"context"
+	"database/sql"
+	"github.com/astaxie/beego/orm"
+)
 
 func queryArticleListInSql(pageno, size int) ([]*Article, error) {
 	offset := pageno * size
@@ -60,11 +64,30 @@ func queryArticleByTagInSql(tags []*Tag) ([]*Article, error) {
 }
 
 func insertArticleInSql(a *Article) error {
-	id, err := orm.NewOrm().Insert(a)
+	o := orm.NewOrm()
+	err := o.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+	})
+
 	if err != nil {
 		return err
 	}
+	id, err := o.Insert(a)
+	if err != nil {
+		_ = o.Rollback()
+		return err
+	}
 	a.Id = id
+	m2m := o.QueryM2M(a, "Tags")
+	if a.Tags != nil || len(a.Tags) > 0 {
+		_, err = m2m.Add(a.Tags)
+
+	}
+	if err != nil {
+		_ = o.Rollback()
+		return err
+	}
+	o.Commit()
 	return nil
 }
 

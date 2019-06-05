@@ -13,9 +13,8 @@ import (
 负责消息队列里的发送逻辑
 */
 var (
-	mqConn *amqp.Connection
-	maCh   *amqp.Channel
-	q      amqp.Queue
+	mqConn       *amqp.Connection
+	articleQueue = "article"
 )
 
 func init() {
@@ -25,15 +24,6 @@ func init() {
 		beego.BeeLogger.Error("%s", err)
 	}
 
-	maCh, err = mqConn.Channel()
-
-	q, err = maCh.QueueDeclare(
-		"article",
-		false,
-		false,
-		false,
-		false,
-		nil)
 	if err != nil {
 		beego.BeeLogger.Error("%s", err)
 	}
@@ -44,8 +34,16 @@ func SendArticleMessage(message *blogmesssage.ArticleMessage) {
 	if err != nil {
 		return
 	}
+
+	maCh, err := mqConn.Channel()
+	if err != nil {
+		beego.BeeLogger.Error("%s when send article message ", err.Error())
+		return
+	}
+
+	defer maCh.Close()
 	err = maCh.Publish("",
-		q.Name,
+		articleQueue,
 		false,
 		false,
 		amqp.Publishing{
@@ -55,14 +53,28 @@ func SendArticleMessage(message *blogmesssage.ArticleMessage) {
 	)
 
 	if err != nil {
-		log.Printf("%s", err.Error())
+		beego.BeeLogger.Error("%s", err.Error())
 	}
 }
 
-//todo 添加移除操作
+/**
+rpc 调用
+getRecommendArticleIds:
+	args:ids  size
+	return ids
 
-func getRecommendArticleIds(ids []int64) ([]int64, error) {
-	content, err := json.Marshal(ids)
+*/
+func getRecommendArticleIds(ids []int64, size int) ([]int64, error) {
+	args := make(map[string]interface{})
+	args["ids"] = ids
+	args["size"] = size
+	content, err := json.Marshal(args)
+	maCh, err := mqConn.Channel()
+
+	if err != nil {
+		return nil, err
+	}
+	defer maCh.Close()
 	q, err := maCh.QueueDeclare(
 		"",    // name
 		false, // durable
@@ -90,11 +102,12 @@ func getRecommendArticleIds(ids []int64) ([]int64, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	msgs, err := maCh.Consume(q.Name, "recs", true,
 		false,
 		false, false, nil)
 	if err != nil {
-		log.Fatal(err)
+		beego.BeeLogger.Error("%s when get recommended articles ", err.Error())
 	}
 	for d := range msgs {
 		if corrId == d.CorrelationId {

@@ -60,7 +60,26 @@ func getTagsInCache() ([]*Tag, error) {
 	return tags, nil
 }
 
-func queryTagsByIdInCache(ids []int64) ([]*Tag, error) {
+func queryTagByIdInCache(id int64) (*Tag, error) {
+	conn := client.Get()
+	tag := new(Tag)
+	key := tagIdKey(id)
+
+	r, err := conn.Do("GET", key)
+	if err != nil {
+		return nil, err
+	}
+
+	if r == nil {
+		return nil, nil
+	}
+
+	_ = json.Unmarshal(r.([]byte), tag)
+
+	return tag, nil
+}
+
+func queryTagsByIdsInCache(ids []int64) ([]*Tag, error) {
 	tags := make([]*Tag, 0)
 	conn := client.Get()
 	for _, id := range ids {

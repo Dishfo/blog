@@ -40,6 +40,10 @@ func TestBeego(t *testing.T) {
 	})
 }
 
+func TestAddArticle(t *testing.T) {
+
+}
+
 func TestLogin(t *testing.T) {
 	client := &http.Client{}
 	r, _ := http.NewRequest("POST", "/v1/admin/login", nil)

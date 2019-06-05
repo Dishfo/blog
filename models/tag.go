@@ -38,7 +38,7 @@ func DeleteTag(id int64) error {
 }
 
 func QueryTagsById(ids []int64) ([]*Tag, error) {
-	/*tags, err := queryTagsByIdInCache(ids)
+	/*tags, err := queryTagsByIdsInCache(ids)
 	if err != nil {
 		return nil, err
 	}
