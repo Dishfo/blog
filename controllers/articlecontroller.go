@@ -114,7 +114,7 @@ func (c *ArticleController) GetArticleByTag() {
 			models.NewOperationResult(models.InvalidArg)
 	} else {
 		tags, err := models.QueryTagsById(tagIds)
-		if err != nil {
+		if err != nil || len(tags) != len(tagIds) {
 			result.OperationResult =
 				models.NewOperationResult(models.InternalErr)
 			goto out

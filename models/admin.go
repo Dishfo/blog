@@ -1,11 +1,13 @@
 package models
 
-import "github.com/astaxie/beego/orm"
-
 type Administrator struct {
-	Id       int64
-	Name     string `orm:"unique"`
-	Password string
+	Id       int64  `gorm:"primary_key auto_increment"`
+	Name     string `gorm:"unique_index;type:varchar(35)"`
+	Password string `gorm:"type:varchar(35)"`
+}
+
+func (Administrator) TableName() string {
+	return adminTable
 }
 
 const (
@@ -14,11 +16,7 @@ const (
 
 func QueryAdministrator(userName string) *Administrator {
 	a := new(Administrator)
-	o := orm.NewOrm()
-	err := o.QueryTable(adminTable).Filter("Name", userName).One(a)
-	if err != nil {
-		return nil
-	}
+	dbInstance.Where("name = ?", userName).First(a)
 	if a.Id == 0 {
 		return nil
 	}

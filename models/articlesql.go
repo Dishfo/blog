@@ -1,44 +1,27 @@
 package models
 
 import (
-	"context"
 	"database/sql"
-	"github.com/astaxie/beego/orm"
+	"strings"
 )
+
+//todo 将beego orm 替换为gorm
 
 func queryArticleListInSql(pageno, size int) ([]*Article, error) {
 	offset := pageno * size
-	articles := make([]*Article, 0)
-	qb, _ := orm.NewQueryBuilder("mysql")
-	qb.Select("id", "title", "publish", "summary").
-		From(articleTable).
+	var articles []*Article
+	dbInstance.
 		Limit(size).
-		Offset(offset)
-	sql := qb.String()
-	o := orm.NewOrm()
-	err := o.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer o.Commit()
-	_, err = o.Raw(sql).QueryRows(&articles)
-	for _, a := range articles {
-		_, err = o.LoadRelated(a, "Tags")
-	}
-	if err != nil {
-		return nil, err
-	}
+		Offset(offset).
+		Preload("Tags").
+		Find(&articles)
+
 	return articles, nil
 }
 
 func queryArticleByIdInSql(id int64) (*Article, error) {
 	a := new(Article)
-	err :=
-		orm.NewOrm().
-			QueryTable(articleTable).
-			Filter("Id", id).
-			One(a)
-
+	err := dbInstance.First(a, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,59 +38,39 @@ func queryArticleByTagInSql(tags []*Tag) ([]*Article, error) {
 		tagIds = append(tagIds, tag.Id)
 	}
 	articles := make([]*Article, 0)
-	o := orm.NewOrm()
-	_, err := o.QueryTable(articleTable).
-		Filter("Tags__Tag__id__in", tagIds).
-		Distinct().
-		All(&articles)
-	return articles, err
+
+	return articles, nil
 }
 
 func insertArticleInSql(a *Article) error {
-	o := orm.NewOrm()
-	err := o.BeginTx(context.Background(), &sql.TxOptions{
-		Isolation: sql.LevelSerializable,
-	})
+	tags := a.Tags
+	a.Tags = nil
+	tx := dbInstance.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
+	err := tx.Create(a).Error
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
-	id, err := o.Insert(a)
-	if err != nil {
-		_ = o.Rollback()
-		return err
-	}
-	a.Id = id
-	m2m := o.QueryM2M(a, "Tags")
-	if a.Tags != nil || len(a.Tags) > 0 {
-		_, err = m2m.Add(a.Tags)
 
-	}
+	err = tx.Model(a).Association("Tags").Append(tags).Error
 	if err != nil {
-		_ = o.Rollback()
+		tx.Rollback()
 		return err
 	}
-	o.Commit()
-	return nil
+
+	return tx.Commit().Error
 }
 
 func updateArticleInSql(a *Article, fields []string) error {
-	o := orm.NewOrm()
+	/*o := orm.NewOrm()
 	var err error
 	err = o.Begin()
-	setTag := false
-	filterFields := make([]string, 0)
-	for _, f := range fields {
-		if f != "Tags" {
-			filterFields = append(filterFields, f)
-		} else {
-			setTag = true
-		}
-	}
-
-	if len(filterFields) != 0 {
-		_, err = o.Update(a, filterFields...)
-	}
 
 	//修改相关的tag关系
 	if setTag {
@@ -123,14 +86,83 @@ func updateArticleInSql(a *Article, fields []string) error {
 	} else {
 		_ = o.Commit()
 	}
+	*/
+	var err error
+	tx := dbInstance.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	setTag := false
+	filterFields := make([]string, 0)
+	for _, f := range fields {
+		if f != "Tags" {
+			filterFields = append(filterFields, f)
+		} else {
+			setTag = true
+		}
+	}
 
-	return err
+	if len(filterFields) != 0 {
+		err = tx.
+			Model(a).
+			Select(strings.Join(filterFields, ",")).
+			Updates(a).Error
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if setTag {
+		err = tx.Model(a).Association("Tags").Replace(a.Tags).Error
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+
 }
 
 func deleteArticleInSql(id int64) error {
-	o := orm.NewOrm()
-	_, err := o.Delete(&Article{
-		Id: id,
-	})
-	return err
+	return dbInstance.Delete(&Article{}, id).Error
+}
+
+func unpackSqlResult(rows *sql.Rows) ([]*Article, error) {
+	articles := make([]*Article, 0)
+	var err error
+	var lastId int64 = 0
+	var lastA *Article
+	var tagName string
+	var tagId int64
+	for rows.Next() {
+		a := new(Article)
+		err = rows.Scan(&a.Id,
+			&a.Title,
+			&a.Publish,
+			&a.Summary,
+			&tagId,
+			&tagName)
+		if a.Id != lastId {
+			articles = append(articles, a)
+			lastA = a
+			a.Tags = make([]*Tag, 0)
+		} else {
+			a = lastA
+		}
+		if err != nil {
+			return nil, err
+		}
+		if tagId != 0 {
+			a.Tags = append(a.Tags, &Tag{
+				Id:   tagId,
+				Name: tagName,
+			})
+		}
+	}
+	return articles, nil
 }

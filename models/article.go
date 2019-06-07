@@ -12,12 +12,16 @@ type ArticleEditWrapper struct {
 }
 
 type Article struct {
-	Id      int64
-	Title   string    `orm:"size(128);type(varchar)"`
-	Publish time.Time `orm:"type(timestamp)"`
-	Summary string    `orm:"size(256)"`
-	Content string    `orm:"size(65535);type(text)"`
-	Tags    []*Tag    `orm:"rel(m2m)"`
+	Id      int64     `gorm:"primary_key type:int auto_increment"`
+	Title   string    `gorm:"type:varchar(100) not null "`
+	Publish time.Time `gorm:"type(timestamp)"`
+	Summary string    `gorm:"type:varchar(256)"`
+	Content string    `gorm:"type:text(65535)"`
+	Tags    []*Tag    `gorm:"many2many:article_tags"`
+}
+
+func (Article) TableName() string {
+	return "article"
 }
 
 //提供对外的函数进行相关的读写操作而隐藏相关的数据库或缓存操作.
@@ -116,4 +120,9 @@ func GetRecommendArticles(ids []int64, size int) ([]*Article, error) {
 	}
 
 	return articles, nil
+}
+
+func checkTagsExist(tags []*Tag) bool {
+
+	return true
 }

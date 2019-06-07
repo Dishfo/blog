@@ -5,9 +5,13 @@ import (
 )
 
 type Tag struct {
-	Id       int64
-	Name     string     `orm:"unique;size(20)"`
-	Articles []*Article `orm:"reverse(many)"`
+	Id       int64      `gorm:"primary_key type:int auto_increment;"`
+	Name     string     `gorm:"unique_index;type:varchar(20);"`
+	Articles []*Article `gorm:"mamy2many:article_tags;PRELOAD:false"`
+}
+
+func (Tag) TableName() string {
+	return "tag"
 }
 
 func QueryAllTags() ([]*Tag, error) {
@@ -38,13 +42,5 @@ func DeleteTag(id int64) error {
 }
 
 func QueryTagsById(ids []int64) ([]*Tag, error) {
-	/*tags, err := queryTagsByIdsInCache(ids)
-	if err != nil {
-		return nil, err
-	}
-	if tags != nil || len(tags) != 0 {
-		log.Println("hit in cache")
-		return tags, nil
-	}*/
 	return queryTagsByIdInSql(ids)
 }
