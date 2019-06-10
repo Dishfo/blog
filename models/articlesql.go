@@ -2,10 +2,16 @@ package models
 
 import (
 	"database/sql"
+	"log"
 	"strings"
+	"sync"
 )
 
 //todo 将beego orm 替换为gorm
+
+var (
+	lock sync.RWMutex
+)
 
 func queryArticleListInSql(pageno, size int) ([]*Article, error) {
 	offset := pageno * size
@@ -54,16 +60,32 @@ func insertArticleInSql(a *Article) error {
 
 	err := tx.Create(a).Error
 	if err != nil {
+		log.Printf("%s when insert article", err.Error())
 		tx.Rollback()
 		return err
 	}
 
+	/*for _,tag := range tags {
+		err = tx.Exec("INSERT INTO `article_tags` (`article_id`,`tag_id`) values" +
+			" (?,?)",a.Id,tag.Id).Error
+		if err != nil {
+			tx.Rollback()
+			log.Printf("%s when append assco",err.Error())
+			return err
+		}
+	}*/
+
+	//lock.Lock()
 	err = tx.Model(a).Association("Tags").Append(tags).Error
 	if err != nil {
+		//	lock.Unlock()
+		log.Println(a.Id)
 		tx.Rollback()
+		log.Printf("%s when append assco", err.Error())
 		return err
 	}
 
+	//lock.Unlock()
 	return tx.Commit().Error
 }
 

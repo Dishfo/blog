@@ -37,5 +37,5 @@ func RegisterDB() {
 	}
 
 	dbInstance.DB().SetMaxIdleConns(20)
-	dbInstance.LogMode(true)
+	//dbInstance.LogMode(true)
 }

@@ -22,38 +22,6 @@ func init() {
 
 func TestTagQuery(t *testing.T) {
 
-	//tag := &Tag{
-	//	Name: "golang",
-	//}
-	//
-	//o := orm.NewOrm()
-	//o.Begin()
-	//_, err := o.Insert(tag)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//for i := 0; i < 3; i++ {
-	//	a := &Article{
-	//		Title:   "1111",
-	//		Publish: time.Now(),
-	//	}
-	//	a.Tags = []*Tag{
-	//		tag,
-	//	}
-	//
-	//	o.Insert(a)
-	//
-	//	m2m := o.QueryM2M(a, "Tags")
-	//	m2m.Add(tag)
-	//}
-	///*a2 := new(Article)
-	//o.QueryTable("article").
-	//	Filter("Tags__Tag__Id",tag.Id).One(a2)
-	//o.LoadRelated(a2,"Tags")*/
-	//o.Commit()
-	//n := time.Now()
-
 	tags, err := QueryAllTags()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -148,7 +116,6 @@ func TestArticleCache(t *testing.T) {
 	//if err!=nil {
 	//	log.Println(err)
 	//}
-
 	a.Title = "dishfo test"
 
 	updateArticleInCache(a, []string{
@@ -179,7 +146,7 @@ func TestArticleCacheMod(t *testing.T) {
 	//data, _ := ioutil.ReadFile(contentFile)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go func() {
 			a := &Article{
@@ -188,31 +155,23 @@ func TestArticleCacheMod(t *testing.T) {
 				Publish: time.Now(),
 				Content: string("123"),
 				Tags: []*Tag{
-					&Tag{
+					{
 						Id: 23,
-					},
-					&Tag{
-						Id: 20,
 					},
 				},
 			}
-			for i := 0; i < 5; i++ {
+			for i := 0; i < 500; i++ {
 				a.Id = 0
 				err := CreateArticle(a)
 				if err != nil {
 					t.Log(err)
 				}
-				//QueryArticleById(a.Id)
-
 			}
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-
-	//1clearArticles()
-
 }
 
 func TestQueryAricle(t *testing.T) {
@@ -221,6 +180,9 @@ func TestQueryAricle(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
+	t.Log(len(articles))
+
+	articles, err = queryRelatedArticle(23)
 	t.Log(len(articles))
 }
 
@@ -254,45 +216,6 @@ func TestUpdateArticle(t *testing.T) {
 }
 
 func TestRpcCall(t *testing.T) {
-	/*content, err := json.Marshal([]int{1, 2, 3, 4, 5})
-	if err != nil {
-		return
-	}
-	q, err := maCh.QueueDeclare(
-		"",    // name
-		false, // durable
-		false, // delete when usused
-		true,  // exclusive
-		false, // noWait
-		nil,   // arguments
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = maCh.Publish("rpc",
-		"recommended",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType:   "application/json",
-			Body:          content,
-			CorrelationId: "one",
-			ReplyTo:       q.Name,
-		},
-	)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	msgs, err := maCh.Consume(q.Name, "recs", true,
-		false,
-		false, false, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for d := range msgs {
-		log.Println(string(d.Body))
-	}*/
 	ids := []int{
 		1, 2, 3, 4,
 	}

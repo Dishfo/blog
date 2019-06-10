@@ -7,7 +7,7 @@ import (
 type Tag struct {
 	Id       int64      `gorm:"primary_key type:int auto_increment;"`
 	Name     string     `gorm:"unique_index;type:varchar(20);"`
-	Articles []*Article `gorm:"mamy2many:article_tags;PRELOAD:false"`
+	Articles []*Article `gorm:"mamy2many:article_tags PRELOAD:false;"`
 }
 
 func (Tag) TableName() string {

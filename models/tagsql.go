@@ -35,9 +35,10 @@ func queryTagsByIdInSql(ids []int64) ([]*Tag, error) {
 
 func queryRelatedArticle(id int64) ([]*Article, error) {
 	articles := make([]*Article, 0)
-	db := dbInstance.Model(&Tag{
-		Id: id,
-	}).Related(&articles, "Articles")
+	db := dbInstance.
+		Where("id = ?", id).
+		First(&Tag{}).
+		Related(&articles, "Articles").Find(&articles)
 	if db.Error != nil {
 		return nil, db.Error
 	}
