@@ -22,6 +22,7 @@ func main() {
 	if beego.BConfig.RunMode == "prod" {
 		controllers.FilterUserPermission()
 		controllers.FilterIpAccessLimit()
+		controllers.FilterAccessCount()
 	}
 	/*	beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{
 		AllowAllOrigins:  true,

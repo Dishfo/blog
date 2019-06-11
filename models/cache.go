@@ -52,10 +52,16 @@ func InitRedis() {
 	go func() {
 		for {
 			time.Sleep(time.Second * 120)
+			//todo 替换为waitGroup
 			cleanExpiredToken()
 			clearAccessRecord()
 			clearAccessSeq()
 			clearArticles()
 		}
 	}()
+
+	go func() {
+		cleanCount()
+	}()
+
 }

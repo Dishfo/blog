@@ -100,7 +100,7 @@ func getRecommendArticleIds(ids []int64, size int) ([]int64, error) {
 	)
 
 	if err != nil {
-		log.Fatal(err)
+		beego.Error("%s when rpc\n", err.Error())
 	}
 
 	msgs, err := maCh.Consume(q.Name, "recs", true,
